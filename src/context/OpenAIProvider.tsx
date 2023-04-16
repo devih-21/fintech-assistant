@@ -256,6 +256,7 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
             body: JSON.stringify({
               text: messages_[messages_.length - 1].content,
               note_check:
+                messages_.length > 1 &&
                 messages_[messages_.length - 2].status === 3
                   ? messages_[messages_.length - 1].content
                       .toLowerCase()
