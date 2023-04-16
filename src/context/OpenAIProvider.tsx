@@ -12,7 +12,7 @@ import {
   OpenAIChatMessage,
   OpenAIConfig,
   OpenAISystemMessage,
-  OpenAIChatModels
+  OpenAIChatModels,
 } from "@/utils/OpenAI";
 import React, { PropsWithChildren, useCallback, useEffect } from "react";
 import { useRouter } from "next/router";
@@ -139,7 +139,6 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
         ...newConfig,
       };
     });
-
   };
 
   const updateMessageContent = (id: number, content: string) => {
@@ -242,24 +241,32 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
 
       messages_ = messages_.length ? messages_ : messages;
 
+      console.log("messages_", messages_);
+
       try {
         const decoder = new TextDecoder();
-        const { body, ok } = await fetch("/api/completion", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            ...config,
-            messages: [systemMessage, ...messages_].map(
-              ({ role, content }) => ({
-                role,
-                content,
-              })
-            ),
-          }),
-        });
+        const { body, ok } = await fetch(
+          "https://hack.reelsights.com/flow_transfer",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              accept: "application/json",
+            },
+            body: JSON.stringify({
+              text: messages_[messages_.length - 1].content,
+              note_check:
+                messages_[messages_.length - 2].status === 3
+                  ? messages_[messages_.length - 1].content
+                      .toLowerCase()
+                      .includes("không")
+                    ? 0
+                    : 1
+                  : 1,
+            }),
+          }
+        );
+        console.log(body, ok);
 
         if (!body) return;
         const reader = body.getReader();
@@ -276,38 +283,36 @@ export default function OpenAIProvider({ children }: PropsWithChildren) {
           );
         }
 
+        const { value } = await reader.read();
+        const chunkValue = decoder.decode(value);
+        const { stage_id, msg } = JSON.parse(chunkValue);
+
         let done = false;
 
         const message = {
           id: messages_.length,
           role: "assistant",
-          content: "",
+          content: msg,
+          status: 0,
         } as OpenAIChatMessage;
 
         setMessages((prev) => {
           message.id = prev.length;
+          message.status = stage_id;
           return [...prev, message];
         });
 
         while (!done) {
+          console.log("update content");
           const { value, done: doneReading } = await reader.read();
           done = doneReading;
           const chunkValue = decoder.decode(value);
-          message.content += chunkValue;
-
+          const { msg } = JSON.parse(chunkValue);
+          message.content += msg;
           updateMessageContent(message.id as number, message.content);
         }
       } catch (error: any) {
-        setMessages((prev) => {
-          return [
-            ...prev,
-            {
-              id: prev.length,
-              role: "assistant",
-              content: error.message,
-            },
-          ];
-        });
+        console.log(error);
       }
 
       setLoading(false);

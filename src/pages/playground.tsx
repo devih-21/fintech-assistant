@@ -11,7 +11,7 @@ export default function Playground() {
   return (
     <React.Fragment>
       <Head>
-        <title>OpenAI Playground</title>
+        <title>Fintech Assistant</title>
         <meta name="description" content="A clone of OpenAI playground." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
